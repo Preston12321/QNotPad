@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
     // Set values for QSettings
     a.setOrganizationName("LockeTech");
     a.setOrganizationDomain("prestonlocke.net");
-    a.setApplicationName("NotPad");
+    a.setApplicationName("QNotPad");
 
     EditorWindow w;
     w.show();

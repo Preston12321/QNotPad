@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QSettings>
+#include <QString>
 
 namespace Ui {
 class EditorWindow;
@@ -23,10 +24,12 @@ private slots:
     void on_actionFont_Style_triggered();
     void on_actionSave_As_triggered();
     void on_actionSave_triggered();
+    void on_actionNew_triggered();
 
 private:
     Ui::EditorWindow *ui;
     QSettings *pref;
+    QString applicationFilePath;
     QString filePath;
     void toggleWordWrap(bool shouldWrap);
     void doSaveAs();

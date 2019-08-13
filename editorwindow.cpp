@@ -3,9 +3,11 @@
 #include "preferences.h"
 #include "ui_editorwindow.h"
 
+#include <QApplication>
 #include <QFile>
 #include <QFileDialog>
 #include <QFontDialog>
+#include <QProcess>
 #include <QSettings>
 #include <QTextStream>
 
@@ -53,6 +55,9 @@ EditorWindow::EditorWindow(QWidget *parent)
     ui->menuView->setTitle(tr("View"));
     ui->actionWord_Wrap->setText(tr("Word Wrap"));
     ui->actionFont_Style->setText(tr("Font Style"));
+
+    // Get file path for this executable, for spawning new processes
+    applicationFilePath = QApplication::instance()->applicationFilePath();
 }
 
 EditorWindow::~EditorWindow() { delete ui; }
@@ -123,4 +128,8 @@ void EditorWindow::on_actionSave_triggered() {
     } else {
         saveFile();
     }
+}
+
+void EditorWindow::on_actionNew_triggered() {
+    QProcess::startDetached(applicationFilePath);
 }
