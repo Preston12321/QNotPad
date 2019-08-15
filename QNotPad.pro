@@ -8,7 +8,7 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = NotPad
+TARGET = QNotPad
 TEMPLATE = app
 
 # The following define makes your compiler emit warnings if you use
@@ -27,23 +27,18 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
     editorwindow.cpp \
-    preferences.cpp #\
-#    process.cpp
+    preferences.cpp
 
 HEADERS += \
     editorwindow.h \
-    preferences.h #\
-#    process.h
+    preferences.h
 
 unix {
-    message("Unix arch detected. Adding unix-specific sources...")
-#    SOURCES += unixprocess.cpp
-#    HEADERS += unixprocess.h
+#    message("Unix arch detected. Adding Unix-specific sources...")
 }
 
 win32 {
-    # TODO: SOURCES += winprocess.cpp
-    # TODO: SOURCES += winprocess.h
+#    message("Windows arch detected. Adding Windows-specific sources...")
 }
 
 FORMS += \
