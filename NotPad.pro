@@ -27,18 +27,18 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
     editorwindow.cpp \
-    preferences.cpp \
-    process.cpp
+    preferences.cpp #\
+#    process.cpp
 
 HEADERS += \
     editorwindow.h \
-    preferences.h \
-    process.h
+    preferences.h #\
+#    process.h
 
 unix {
     message("Unix arch detected. Adding unix-specific sources...")
-    SOURCES += unixprocess.cpp
-    HEADERS += unixprocess.h
+#    SOURCES += unixprocess.cpp
+#    HEADERS += unixprocess.h
 }
 
 win32 {

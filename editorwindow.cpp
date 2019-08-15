@@ -1,5 +1,4 @@
 #include "editorwindow.h"
-#include "fontdialog.h"
 #include "preferences.h"
 #include "ui_editorwindow.h"
 
@@ -7,6 +6,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFontDialog>
+#include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
 #include <QTextStream>
@@ -78,28 +78,68 @@ void EditorWindow::toggleWordWrap(bool shouldWrap) {
     savePref(pref, "Editor", "WordWrap", shouldWrap);
 }
 
-void EditorWindow::doSaveAs() {
+bool EditorWindow::doSaveAs() {
     auto path = QFileDialog::getSaveFileName(this, tr("Save As"));
 
-    if (path.isNull() || path.isEmpty()) return;
+    if (path.isNull() || path.isEmpty()) return false;
 
     filePath = path;
-    saveFile();
+    return saveFile();
 }
 
-void EditorWindow::saveFile() {
+bool EditorWindow::saveFile() {
     auto contents = ui->plainTextEdit->toPlainText();
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         // TODO: Show error message
-        return;
+        QMessageBox::warning(this, "File Error",
+                             "Failed to save file. Please try again.");
+        return false;
     }
     QTextStream out(&file);
     out << contents;
     file.close();
 
     setWindowTitle(filePath.mid(filePath.lastIndexOf("/") + 1));
+    ui->plainTextEdit->document()->setModified(false);
+
+    return true;
+}
+
+bool EditorWindow::doFileModifiedCheck() {
+    if (!ui->plainTextEdit->document()->isModified()) return true;
+
+    QMessageBox msgBox;
+    msgBox.setText("The document has been modified.");
+    msgBox.setInformativeText("Do you want to save your changes?");
+    msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Discard |
+                              QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Save);
+
+    bool proceed;
+
+    switch (msgBox.exec()) {
+        case QMessageBox::Save:
+            // Let on_actionSave_triggered do (Save/Save As)
+            // and proceed if successful
+            proceed = on_actionSave_triggered();
+            break;
+        case QMessageBox::Discard:
+            // Not worried about overriding document, so proceed
+            proceed = true;
+            break;
+        case QMessageBox::Cancel:
+            // Cancel was clicked
+            proceed = false;
+            break;
+        default:
+            // should never be reached
+            proceed = false;
+            break;
+    }
+
+    return proceed;
 }
 
 void EditorWindow::resizeEvent(QResizeEvent *event) {
@@ -120,16 +160,56 @@ void EditorWindow::on_actionFont_Style_triggered() {
     }
 }
 
-void EditorWindow::on_actionSave_As_triggered() { doSaveAs(); }
+bool EditorWindow::on_actionSave_As_triggered() { return doSaveAs(); }
 
-void EditorWindow::on_actionSave_triggered() {
+bool EditorWindow::on_actionSave_triggered() {
     if (filePath.isNull() || filePath.isEmpty()) {
-        doSaveAs();
+        return doSaveAs();
     } else {
-        saveFile();
+        return saveFile();
     }
 }
 
 void EditorWindow::on_actionNew_triggered() {
     QProcess::startDetached(applicationFilePath);
+}
+
+void EditorWindow::on_actionOpen_triggered() {
+    // If user doesn't discard or save document (if modified), don't proceed
+    if (!doFileModifiedCheck()) return;
+
+    auto path = QFileDialog::getOpenFileName(this, tr("Open File"));
+
+    if (path.isNull() || path.isEmpty()) return;
+
+    filePath = path;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        // TODO: Show error message
+        QMessageBox::warning(this, "File Error",
+                             "Failed to open file. Please try again.");
+        return;
+    }
+    QTextStream read(&file);
+    QString contents = read.readAll();
+    file.close();
+
+    setWindowTitle(filePath.mid(filePath.lastIndexOf("/") + 1));
+
+    auto doc = ui->plainTextEdit->document();
+    doc->setPlainText(contents);
+    doc->setModified(false);
+}
+
+void EditorWindow::on_plainTextEdit_modificationChanged() {
+    if (ui->plainTextEdit->document()->isModified()) {
+        setWindowTitle("*" + windowTitle());
+    } else {
+        if (!filePath.isNull() && !filePath.isEmpty()) {
+            setWindowTitle(filePath.mid(filePath.lastIndexOf("/" + 1)));
+        } else {
+            setWindowTitle("Untitled Document");
+        }
+    }
 }

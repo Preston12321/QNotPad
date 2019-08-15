@@ -22,9 +22,11 @@ protected:
 private slots:
     void on_actionWord_Wrap_toggled(bool shouldWrap);
     void on_actionFont_Style_triggered();
-    void on_actionSave_As_triggered();
-    void on_actionSave_triggered();
+    bool on_actionSave_As_triggered();
+    bool on_actionSave_triggered();
     void on_actionNew_triggered();
+    void on_actionOpen_triggered();
+    void on_plainTextEdit_modificationChanged();
 
 private:
     Ui::EditorWindow *ui;
@@ -32,8 +34,9 @@ private:
     QString applicationFilePath;
     QString filePath;
     void toggleWordWrap(bool shouldWrap);
-    void doSaveAs();
-    void saveFile();
+    bool doSaveAs();
+    bool saveFile();
+    bool doFileModifiedCheck();
 };
 
 #endif  // EDITORWINDOW_H
