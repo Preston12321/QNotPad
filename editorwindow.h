@@ -33,6 +33,7 @@ private:
     QSettings *pref;
     QString applicationFilePath;
     QString filePath;
+    void closeEvent(QCloseEvent *event);
     void toggleWordWrap(bool shouldWrap);
     bool doSaveAs();
     bool saveFile();

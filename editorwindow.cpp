@@ -3,6 +3,7 @@
 #include "ui_editorwindow.h"
 
 #include <QApplication>
+#include <QCloseEvent>
 #include <QFile>
 #include <QFileDialog>
 #include <QFontDialog>
@@ -10,6 +11,7 @@
 #include <QProcess>
 #include <QSettings>
 #include <QTextStream>
+#include <QtDebug>
 
 EditorWindow::EditorWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::EditorWindow) {
@@ -92,7 +94,6 @@ bool EditorWindow::saveFile() {
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        // TODO: Show error message
         QMessageBox::warning(this, "File Error",
                              "Failed to save file. Please try again.");
         return false;
@@ -134,7 +135,8 @@ bool EditorWindow::doFileModifiedCheck() {
             proceed = false;
             break;
         default:
-            // should never be reached
+            // Should never be reached
+            qWarning() << "Invalid input returned from QMessageBox";
             proceed = false;
             break;
     }
@@ -163,11 +165,7 @@ void EditorWindow::on_actionFont_Style_triggered() {
 bool EditorWindow::on_actionSave_As_triggered() { return doSaveAs(); }
 
 bool EditorWindow::on_actionSave_triggered() {
-    if (filePath.isNull() || filePath.isEmpty()) {
-        return doSaveAs();
-    } else {
-        return saveFile();
-    }
+    return (filePath.isNull() || filePath.isEmpty()) ? doSaveAs() : saveFile();
 }
 
 void EditorWindow::on_actionNew_triggered() {
@@ -186,7 +184,6 @@ void EditorWindow::on_actionOpen_triggered() {
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        // TODO: Show error message
         QMessageBox::warning(this, "File Error",
                              "Failed to open file. Please try again.");
         return;
@@ -205,11 +202,22 @@ void EditorWindow::on_actionOpen_triggered() {
 void EditorWindow::on_plainTextEdit_modificationChanged() {
     if (ui->plainTextEdit->document()->isModified()) {
         setWindowTitle("*" + windowTitle());
-    } else {
-        if (!filePath.isNull() && !filePath.isEmpty()) {
-            setWindowTitle(filePath.mid(filePath.lastIndexOf("/" + 1)));
-        } else {
-            setWindowTitle("Untitled Document");
-        }
+        return;
     }
+
+    if (!filePath.isNull() && !filePath.isEmpty()) {
+        setWindowTitle(filePath.mid(filePath.lastIndexOf("/" + 1)));
+        return;
+    }
+
+    setWindowTitle("Untitled Document");
+}
+
+void EditorWindow::closeEvent(QCloseEvent *event) {
+    if (doFileModifiedCheck()) {
+        event->accept();
+        return;
+    }
+
+    event->ignore();
 }
