@@ -25,12 +25,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 CONFIG += c++11
 
 SOURCES += \
+    finddialog.cpp \
         main.cpp \
     editorwindow.cpp \
     preferences.cpp
 
 HEADERS += \
     editorwindow.h \
+    finddialog.h \
     preferences.h
 
 unix {
@@ -42,7 +44,8 @@ win32 {
 }
 
 FORMS += \
-    editorwindow.ui
+    editorwindow.ui \
+    finddialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

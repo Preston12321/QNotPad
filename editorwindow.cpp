@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QCloseEvent>
+#include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
 #include <QFontDialog>
@@ -30,20 +31,25 @@ EditorWindow::EditorWindow(QWidget *parent)
     // Editor-related preferences...
 
     // Set Word Wrap from preferences
-    toggleWordWrap(loadPref(pref, "Editor", "WordWrap", false).toBool());
+    on_actionWord_Wrap_toggled(
+        loadPref(pref, "Editor", "WordWrap", false).toBool());
 
     // Disable some of the edit buttons in newly-opened documents
     ui->actionUndo->setEnabled(false);
     ui->actionRedo->setEnabled(false);
     ui->actionCut->setEnabled(false);
     ui->actionCopy->setEnabled(false);
+    ui->actionDelete->setEnabled(false);
 
     // Manually set text for menu buttons using translation
     ui->menuFile->setTitle(tr("File"));
     ui->actionNew->setText(tr("New"));
-    ui->actionOpen->setText(tr("Open"));
+    ui->actionOpen->setText(tr("Open..."));
     ui->actionSave->setText(tr("Save"));
-    ui->actionSave_As->setText(tr("Save As"));
+    ui->actionSave_As->setText(tr("Save As..."));
+    ui->actionPage_Setup->setText(tr("Page Setup..."));
+    ui->actionPrint->setText(tr("Print..."));
+    ui->actionExit->setText(tr("Exit"));
 
     ui->menuEdit->setTitle(tr("Edit"));
     ui->actionUndo->setText(tr("Undo"));
@@ -51,12 +57,21 @@ EditorWindow::EditorWindow(QWidget *parent)
     ui->actionCut->setText(tr("Cut"));
     ui->actionCopy->setText(tr("Copy"));
     ui->actionPaste->setText(tr("Paste"));
-    ui->actionFind->setText(tr("Find"));
-    ui->actionReplace->setText(tr("Replace"));
+    ui->actionDelete->setText(tr("Delete"));
+    ui->actionFind->setText(tr("Find..."));
+    ui->actionFind_Next->setText(tr("Find Next"));
+    ui->actionReplace->setText(tr("Replace..."));
+    ui->actionGo_To->setText(tr("Go To..."));
+    ui->actionSelect_All->setText(tr("Select All"));
+    ui->actionTime_Date->setText(tr("Time/Date"));
 
     ui->menuView->setTitle(tr("View"));
     ui->actionWord_Wrap->setText(tr("Word Wrap"));
-    ui->actionFont_Style->setText(tr("Font Style"));
+    ui->actionFont_Style->setText(tr("Font Style..."));
+
+    // Populate status bar
+    statusBarCursorLabel.setText("Line 0, Col 0");
+    ui->statusBar->addPermanentWidget(&statusBarCursorLabel);
 
     // Get file path for this executable, for spawning new processes
     applicationFilePath = QApplication::instance()->applicationFilePath();
@@ -64,21 +79,26 @@ EditorWindow::EditorWindow(QWidget *parent)
 
 EditorWindow::~EditorWindow() { delete ui; }
 
-void EditorWindow::on_actionWord_Wrap_toggled(bool shouldWrap) {
-    toggleWordWrap(shouldWrap);
+// Event handler overrides
+
+void EditorWindow::closeEvent(QCloseEvent *event) {
+    if (doFileModifiedCheck()) {
+        event->accept();
+        return;
+    }
+
+    event->ignore();
 }
 
-void EditorWindow::toggleWordWrap(bool shouldWrap) {
-    ui->plainTextEdit->setWordWrapMode(
-        shouldWrap ? QTextOption::WrapAtWordBoundaryOrAnywhere
-                   : QTextOption::NoWrap);
+void EditorWindow::resizeEvent(QResizeEvent *event) {
+    QMainWindow::resizeEvent(event);
 
-    if (ui->actionWord_Wrap->isChecked() != shouldWrap)
-        ui->actionWord_Wrap->setChecked(shouldWrap);
-
+    // MAYBE: Save to preferences in separate thread?
     // Save to preferences
-    savePref(pref, "Editor", "WordWrap", shouldWrap);
+    savePref(pref, "Window", "Size", event->size());
 }
+
+// Instance methods
 
 bool EditorWindow::doSaveAs() {
     auto path = QFileDialog::getSaveFileName(this, tr("Save As"));
@@ -144,12 +164,68 @@ bool EditorWindow::doFileModifiedCheck() {
     return proceed;
 }
 
-void EditorWindow::resizeEvent(QResizeEvent *event) {
-    QMainWindow::resizeEvent(event);
+void EditorWindow::updateStatusBarCursorLabel() {
+    auto cursor = ui->plainTextEdit->textCursor();
+    QString message;
 
-    // TODO: Do this in separate thread?
+    if (cursor.hasSelection()) {
+        ui->actionDelete->setEnabled(true);
+
+        int size = cursor.selectedText().size();
+        message = QString(QString::number(size)).append(" selected");
+    } else {
+        ui->actionDelete->setEnabled(false);
+
+        message = QString("Line ")
+                      .append(QString::number(cursor.blockNumber()))
+                      .append(", Col ")
+                      .append(QString::number(cursor.positionInBlock()));
+    }
+
+    statusBarCursorLabel.setText(message);
+}
+
+// QPlainTextEdit related slots
+
+void EditorWindow::on_plainTextEdit_cursorPositionChanged() {
+    updateStatusBarCursorLabel();
+}
+
+void EditorWindow::on_plainTextEdit_selectionChanged() {
+    updateStatusBarCursorLabel();
+}
+
+void EditorWindow::on_plainTextEdit_textChanged() {
+    // Ensure an update when user does Ctrl+Backspace
+    updateStatusBarCursorLabel();
+}
+
+void EditorWindow::on_plainTextEdit_modificationChanged() {
+    if (ui->plainTextEdit->document()->isModified()) {
+        setWindowTitle("*" + windowTitle());
+        return;
+    }
+
+    if (!filePath.isNull() && !filePath.isEmpty()) {
+        setWindowTitle(filePath.mid(filePath.lastIndexOf("/" + 1)));
+        return;
+    }
+
+    setWindowTitle("Untitled Document");
+}
+
+// QAction related slots
+
+void EditorWindow::on_actionWord_Wrap_toggled(bool shouldWrap) {
+    ui->plainTextEdit->setWordWrapMode(
+        shouldWrap ? QTextOption::WrapAtWordBoundaryOrAnywhere
+                   : QTextOption::NoWrap);
+
+    if (ui->actionWord_Wrap->isChecked() != shouldWrap)
+        ui->actionWord_Wrap->setChecked(shouldWrap);
+
     // Save to preferences
-    savePref(pref, "Window", "Size", event->size());
+    savePref(pref, "Editor", "WordWrap", shouldWrap);
 }
 
 void EditorWindow::on_actionFont_Style_triggered() {
@@ -199,25 +275,35 @@ void EditorWindow::on_actionOpen_triggered() {
     doc->setModified(false);
 }
 
-void EditorWindow::on_plainTextEdit_modificationChanged() {
-    if (ui->plainTextEdit->document()->isModified()) {
-        setWindowTitle("*" + windowTitle());
-        return;
-    }
-
-    if (!filePath.isNull() && !filePath.isEmpty()) {
-        setWindowTitle(filePath.mid(filePath.lastIndexOf("/" + 1)));
-        return;
-    }
-
-    setWindowTitle("Untitled Document");
+void EditorWindow::on_actionDelete_triggered() {
+    ui->plainTextEdit->textCursor().removeSelectedText();
 }
 
-void EditorWindow::closeEvent(QCloseEvent *event) {
-    if (doFileModifiedCheck()) {
-        event->accept();
-        return;
-    }
+void EditorWindow::on_actionPage_Setup_triggered() {
+    // TODO: Add 'Page Setup' dialog
+}
 
-    event->ignore();
+void EditorWindow::on_actionPrint_triggered() {
+    // TODO: Add 'Print' dialog
+}
+
+void EditorWindow::on_actionFind_triggered() {
+    // TODO: Show 'Find' dialog
+}
+
+void EditorWindow::on_actionFind_Next_triggered() {
+    // TODO: Implement 'Find Next' action
+}
+
+void EditorWindow::on_actionReplace_triggered() {
+    // TODO: Add 'Replace' dialog
+}
+
+void EditorWindow::on_actionGo_To_triggered() {
+    // TODO: Add 'Go To' dialog
+}
+
+void EditorWindow::on_actionTime_Date_triggered() {
+    auto dt = QDateTime::currentDateTime().toString("h:mm AP M/d/yyyy");
+    ui->plainTextEdit->textCursor().insertText(dt);
 }
